@@ -62,6 +62,7 @@ class Artist(db.Model):
 
     shows = db.relationship('Show', backref='artist')
 
+
 # TODO: implement any missing fields, as a database migration using Flask-Migrate
 
 
@@ -70,7 +71,7 @@ class Show(db.Model):
 
     venue_id = db.Column(db.Integer, db.ForeignKey('Venue.id'), primary_key=True)
     artist_id = db.Column(db.Integer, db.ForeignKey('Artist.id'), primary_key=True)
-    start_time = db.Column(db.DateTime)
+    start_time = db.Column(db.String(120), primary_key=True)
 
 
 # ----------------------------------------------------------------------------#
@@ -532,14 +533,23 @@ def create_shows():
 
 @app.route('/shows/create', methods=['POST'])
 def create_show_submission():
-    # called to create new shows in the db, upon submitting new show listing form
-    # TODO: insert form data as a new Show record in the db, instead
+    form = request.form
 
-    # on successful db insert, flash success
-    flash('Show was successfully listed!')
-    # TODO: on unsuccessful db insert, flash an error instead.
-    # e.g., flash('An error occurred. Show could not be listed.')
-    # see: http://flask.pocoo.org/docs/1.0/patterns/flashing/
+    artist_id = form.get('artist_id')
+    venue_id = form.get('venue_id')
+    start_time = form.get('start_time')
+
+    show = Show(venue_id=venue_id, artist_id=artist_id, start_time=start_time)
+    try:
+        db.session.add(show)
+        db.session.commit()
+        flash('Show was successfully listed!')
+    except Exception as e:
+        db.session.rollback()
+        flash('An error occurred. Show could not be listed.')
+    finally:
+        db.session.close()
+
     return render_template('pages/home.html')
 
 
