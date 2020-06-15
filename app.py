@@ -258,7 +258,7 @@ def create_venue_submission():
                   state=state,
                   address=address,
                   phone=phone,
-                  genres=str(genres),
+                  genres=json.dumps(genres),
                   facebook_link=facebook_link)
     db.session.add(venue)
     try:
