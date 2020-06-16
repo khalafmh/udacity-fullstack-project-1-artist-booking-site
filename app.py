@@ -111,15 +111,6 @@ def index():
 
 @app.route('/venues')
 def venues():
-    def count_upcoming_shows(venue):
-        return len(
-            list(
-                filter(
-                    lambda show: dateutil.parser.parse(show.start_time) >= datetime.now(pytz.UTC),
-                    venue.shows)
-            )
-        )
-
     def data_from_grouped_venue(item):
         return {
             "state": item[0][0],
@@ -127,7 +118,7 @@ def venues():
             "venues": [{
                 "id": venue.id,
                 "name": venue.name,
-                "num_upcoming_shows": count_upcoming_shows(venue)
+                "num_upcoming_shows": len(get_upcoming_shows(venue.shows))
             } for venue in item[1]]
         }
 
@@ -165,18 +156,8 @@ def show_venue(venue_id):
     if venue is None:
         return render_template('errors/404.html')
 
-    past_shows = list(
-        filter(
-            lambda show: dateutil.parser.parse(show.start_time) < datetime.now(pytz.UTC),
-            venue.shows
-        )
-    )
-    upcoming_shows = list(
-        filter(
-            lambda show: dateutil.parser.parse(show.start_time) >= datetime.now(pytz.UTC),
-            venue.shows
-        )
-    )
+    past_shows = get_past_shows(venue.shows)
+    upcoming_shows = get_upcoming_shows(venue.shows)
 
     data = {
         "id": venue.id,
@@ -303,16 +284,13 @@ def search_artists():
 
 @app.route('/artists/<int:artist_id>')
 def show_artist(artist_id):
-    def parse_date(start_time):
-        return dateutil.parser.parse(start_time)
-
     artist = Artist.query.get(artist_id)
 
     if artist is None:
         return render_template('errors/404.html')
 
-    past_shows = list(filter(lambda show: parse_date(show.start_time) < datetime.now(pytz.UTC), artist.shows))
-    upcoming_shows = list(filter(lambda show: parse_date(show.start_time) >= datetime.now(pytz.UTC), artist.shows))
+    past_shows = get_past_shows(artist.shows)
+    upcoming_shows = get_upcoming_shows(artist.shows)
 
     data = {
         "id": artist.id,
@@ -570,6 +548,28 @@ if not app.debug:
     file_handler.setLevel(logging.INFO)
     app.logger.addHandler(file_handler)
     app.logger.info('errors')
+
+
+# ----------------------------------------------------------------------------#
+# Utils.
+# ----------------------------------------------------------------------------#
+def get_upcoming_shows(shows):
+    return list(
+        filter(
+            lambda show: dateutil.parser.parse(show.start_time) >= datetime.now(pytz.UTC),
+            shows
+        )
+    )
+
+
+def get_past_shows(shows):
+    return list(
+        filter(
+            lambda show: dateutil.parser.parse(show.start_time) < datetime.now(pytz.UTC),
+            shows
+        )
+    )
+
 
 # ----------------------------------------------------------------------------#
 # Launch.
