@@ -3,6 +3,10 @@
 # ----------------------------------------------------------------------------#
 
 import json
+from itertools import groupby
+from operator import attrgetter
+from sys import stderr
+
 import dateutil.parser
 import babel
 import babel.dates
@@ -106,29 +110,33 @@ def index():
 
 @app.route('/venues')
 def venues():
-    # TODO: replace with real venues data.
-    #       num_shows should be aggregated based on number of upcoming shows per venue.
-    data = [{
-        "city": "San Francisco",
-        "state": "CA",
-        "venues": [{
-            "id": 1,
-            "name": "The Musical Hop",
-            "num_upcoming_shows": 0,
-        }, {
-            "id": 3,
-            "name": "Park Square Live Music & Coffee",
-            "num_upcoming_shows": 1,
-        }]
-    }, {
-        "city": "New York",
-        "state": "NY",
-        "venues": [{
-            "id": 2,
-            "name": "The Dueling Pianos Bar",
-            "num_upcoming_shows": 0,
-        }]
-    }]
+    def count_upcoming_shows(venue):
+        return len(
+            list(
+                filter(
+                    lambda show: dateutil.parser.parse(show.start_time) >= datetime.now(pytz.UTC),
+                    venue.shows)
+            )
+        )
+
+    def data_from_grouped_venue(item):
+        return {
+            "state": item[0][0],
+            "city": item[0][1],
+            "venues": [{
+                "id": venue.id,
+                "name": venue.name,
+                "num_upcoming_shows": count_upcoming_shows(venue)
+            } for venue in item[1]]
+        }
+
+    all_venues = Venue.query.all()
+
+    sorted_venues = sorted(sorted(all_venues, key=attrgetter('city')), key=attrgetter('state'))
+    grouped_venues = groupby(sorted_venues, key=attrgetter('state', 'city'))
+
+    data = [data_from_grouped_venue(item) for item in grouped_venues]
+
     return render_template('pages/venues.html', areas=data)
 
 
@@ -266,7 +274,8 @@ def create_venue_submission():
     try:
         db.session.commit()
         flash('Venue ' + venue.name + ' was successfully listed!')
-    except:
+    except Exception as e:
+        print(e, file=stderr)
         db.session.rollback()
         flash('An error occurred. Venue ' + venue.name + ' could not be listed.', category="error")
     finally:
@@ -363,7 +372,6 @@ def show_artist(artist_id):
 #  ----------------------------------------------------------------
 @app.route('/artists/<int:artist_id>/edit', methods=['GET'])
 def edit_artist(artist_id):
-
     artist = Artist.query.get(artist_id)
 
     if artist is None:
