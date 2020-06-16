@@ -322,6 +322,9 @@ def show_artist(artist_id):
 
     artist = Artist.query.get(artist_id)
 
+    if artist is None:
+        return render_template('errors/404.html')
+
     past_shows = list(filter(lambda show: parse_date(show.start_time) < datetime.now(pytz.UTC), artist.shows))
     upcoming_shows = list(filter(lambda show: parse_date(show.start_time) >= datetime.now(pytz.UTC), artist.shows))
 
